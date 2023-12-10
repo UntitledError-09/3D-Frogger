@@ -1,25 +1,26 @@
 {
   "view": {
-    "eye": [0.5, 0.5, -0.5, 1.0],
-    "center": [0.5, 0.5, 0.0],
+    "eye": [0, 6, 0, 1.0],
+    "center": [0, 0, 6],
     "up": [0.0, 1.0, 0.0],
     "fov_y": 90,
-    "aspect_ratio": 1,
+    "aspect_ratio": 1.777777777777777777777777,
     "z_near": 0.5
   },
   "lights": [
     {
-      "position": [-0.5, 1.5, -0.5],
-      "ambient": [1, 1, 1],
-      "diffuse": [1, 1, 1],
-      "specular": [1, 1, 1]
+      "position": [0, 10, 0],
+      "material": {
+        "ambient": [1, 1, 1],
+        "diffuse": [1, 1, 1],
+        "specular": [1, 1, 1]
+      }
     }
   ],
-  "staticElements": [],
-  "elements": [
+  "static_elements": [
     {
-      "name": "default cube",
-      "type": "Cube",
+      "name": "ground",
+      "type": "Plane",
       "position": [0,0,0],
       "rotation": [0,0,0,0],
       "scaling": [1,1,1]

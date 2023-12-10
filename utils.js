@@ -8,7 +8,7 @@ export function radToDeg(deg) {
 }
 
 // get the JSON file from the passed URL
-function getJSONFile(url, descr) {
+export function getJSONFile(url, descr) {
     try {
         if ((typeof (url) !== "string") || (typeof (descr) !== "string"))
             throw "getJSONFile: parameter not a string";
@@ -76,7 +76,7 @@ export function initTexture(imgSrc, gl) {
     return texture
 }
 
-function generateCuboidTriangles(width, height, depth) {
+export function generateCuboidTriangles(width, height, depth) {
     const vertices = [
         [-width / 2, -height / 2, depth / 2], // 0
         [width / 2, -height / 2, depth / 2], // 1
@@ -128,6 +128,47 @@ function generateCuboidTriangles(width, height, depth) {
         [0, 3, 7], // bottom
         [0, 7, 4]
     ];
+
+    return {vertices, normals, uvs, triangles};
+}
+
+export function generateEllipsoidTriangles(majorAxisX, majorAxisY, majorAxisZ, subdivision = 30) {
+    const vertices = [];
+    const normals = [];
+    const uvs = [];
+    const triangles = [];
+
+    for (let i = 0; i <= subdivision; i++) {
+        const phi = (i * Math.PI) / subdivision;
+        const cosPhi = Math.cos(phi);
+        const sinPhi = Math.sin(phi);
+
+        for (let j = 0; j <= subdivision; j++) {
+            const theta = (j * 2 * Math.PI) / subdivision;
+            const cosTheta = Math.cos(theta);
+            const sinTheta = Math.sin(theta);
+
+            const x = majorAxisX * sinPhi * cosTheta;
+            const y = majorAxisY * sinPhi * sinTheta;
+            const z = majorAxisZ * cosPhi;
+
+            const u = 1 - j / subdivision;
+            const v = 1 - i / subdivision;
+
+            vertices.push([x, y, z]);
+            normals.push([x / majorAxisX, y / majorAxisY, z / majorAxisZ]);
+            uvs.push([u, v]);
+
+            if (i < subdivision && j < subdivision) {
+                const a = i * (subdivision + 1) + j;
+                const b = a + subdivision + 1;
+                const c = b + 1;
+                const d = a + 1;
+                triangles.push([a, b, d]);
+                triangles.push([b, c, d]);
+            }
+        }
+    }
 
     return {vertices, normals, uvs, triangles};
 }
