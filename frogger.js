@@ -22,7 +22,6 @@ const gameState = {
     level: 1
 }
 var makeItYourOwn = false;
-var light_multiplier =
 
 // var background_color = [0, 0, 0]
 
