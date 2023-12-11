@@ -1,6 +1,7 @@
 // Class Definitions for Frogger
 import {mat4, quat, vec3, vec4} from "./gl_lib";
 import * as utils from "./utils.js"
+import {handleLoadedTexture} from "./utils.js";
 
 export class Material {
     constructor({ambient = [], diffuse = [], specular = [], alpha = 1.0, n = 1.0, texture = '', gl}) {
@@ -74,11 +75,11 @@ export class View {
 export class Light {
     constructor(
         {
-            position = [0,0,0],
+            position = [0, 0, 0],
             material = {
-                ambient: [1,1,1],
-                diffuse: [1,1,1],
-                specular: [1,1,1]
+                ambient: [1, 1, 1],
+                diffuse: [1, 1, 1],
+                specular: [1, 1, 1]
             }
         }
     ) {
@@ -102,9 +103,9 @@ export class Mesh {
         {
             name = "default cube",
             type = "Cube",
-            position = [0,0,0],
-            rotation = [0,0,0,0],
-            scaling = [1,1,1],
+            position = [0, 0, 0],
+            rotation = [0, 0, 0, 0],
+            scaling = [1, 1, 1],
             animatable = false
         },
         meshLookUp = {
@@ -115,9 +116,9 @@ export class Mesh {
                 "indices": [],
                 "uvs": [],
                 "material": {
-                    "ambient": [1,1,1],
-                    "diffuse": [1,1,1],
-                    "specular": [1,1,1],
+                    "ambient": [1, 1, 1],
+                    "diffuse": [1, 1, 1],
+                    "specular": [1, 1, 1],
                     "texture": ''
                 }
             }
@@ -151,7 +152,7 @@ export class Mesh {
                 vec3.subtract(vtx, vec3.fromValues(...vtx), this.center);
             });
 
-            this.center = this.position
+            this.center = vec3.fromValues(0, 0, 0);
         }
 
         // if texture defined, apply it
@@ -216,7 +217,7 @@ export class Mesh {
         }) // end for triangles in set
     }
 
-    refreshViewMatrix(){
+    refreshViewMatrix() {
         // set mesh view matrix to default position, rotation, scaling
         mat4.fromRotationTranslationScaleOrigin(this.viewMatrix, this.rotation, this.position, this.scaling, this.center);
     }
@@ -227,47 +228,12 @@ export class Mesh {
             rotation = quat.fromValues(0, 0, 0, 0),
             scaleFactor = vec3.fromValues(1, 1, 1)
         }
-    ){
+    ) {
         vec3.add(this.position, this.position, translation);
-        vec3.add(this.center, this.center, translation);
         quat.add(this.rotation, this.rotation, rotation)
         vec3.multiply(this.scaling, this.scaling, scaleFactor)
 
         this.refreshViewMatrix()
-    }
-}
-
-export class StaticMesh extends Mesh {
-    constructor() {
-        super(...arguments);
-    }
-
-    translate(translation) {
-        throw "StaticMesh error: function not allowed"
-    }
-
-    rotate(rotationAxis, rotationAngle) {
-        throw "StaticMesh error: function not allowed"
-    }
-
-    scale(scaleFactor) {
-        throw "StaticMesh error: function not allowed"
-    }
-
-    getVectors(){
-
-    }
-}
-
-export class DynamicMesh extends Mesh {
-
-}
-
-export class MeshProperties {
-    constructor() {
-        this.position = position;
-        this.rotation = rotation;
-        this.scaling = scaling;
     }
 }
 
@@ -303,8 +269,8 @@ export class TypedCollection extends Collection {
         super(name);
         this.nestable = nestable;
         this.acceptTypes = acceptTypes;
-        if(this.nestable){
-            this.acceptTypes.push(TypedCollection)
+        if (this.nestable) {
+            this.acceptTypes.push(this.constructor)
         }
     }
 
@@ -312,7 +278,7 @@ export class TypedCollection extends Collection {
         if (this.acceptTypes) {
             items.forEach(item => {
                 if (!this.acceptTypes.some(type => item instanceof type)) {
-                    throw new Error(`Invalid type for item: ${typeof item}`);
+                    throw new Error(`Invalid type for item: ${item.constructor.name}`);
                 }
             });
         }
@@ -343,7 +309,7 @@ export class LightCollection {
         }
         this.length = lightVector.length
 
-        this.vector.light.forEach(light=>{
+        this.vector.light.forEach(light => {
             this.vector.position.push(...vec3.fromValues(...light.position));
             this.vector.material.ambient.push(...vec3.fromValues(...light.material.ambient));
             this.vector.material.diffuse.push(...vec3.fromValues(...light.material.diffuse));
@@ -354,7 +320,7 @@ export class LightCollection {
     recalcTransformedPosition(modelMatrix = mat4.create()) {
         const transformedPosition = vec3.create();
         this.vector.transformedPosition = []
-        this.vector.light.map(light=>{
+        this.vector.light.map(light => {
             vec3.transformMat4(transformedPosition, light.position, modelMatrix);
             this.vector.transformedPosition.push(...transformedPosition);
         })
@@ -363,47 +329,44 @@ export class LightCollection {
     }
 }
 
-export class EndGoal extends Mesh {
-    constructor(mesh_args) {
-        super(mesh_args);
+export class Row extends TypedCollection {
+    constructor(name, nestable = false) {
+        super(name, [Mesh], nestable);
+    }
 
+    setProperties(obj_size, start_position, o2o_distance, obj_speed, obj_bounds = [[-1, 1], [-1, 1], [-1, 1]]) {
+        this.childrenProperties = {obj_size, start_position, o2o_distance, obj_speed}
+    }
+
+    toLast(index) {
+        const temp = this.array.at(-1).position[0]
+        this.array.push(this.array.splice(index, 1)[0])
+        this.array.at(-1).position[0] = temp + this.childrenProperties.o2o_distance
+    }
+}
+
+export class RowObject extends Mesh {
+    constructor(...args) {
+        super(...args);
     }
 }
 
 export class Player extends Mesh {
-    constructor(
-        args = {
-            center: vec3.fromValues(0, 0, 0),
-            rotation: vec4.fromValues(0, 1, 0, 0),
-            vertices: [],
-            normals: [],
-            indices: [],
-            uvs: [],
-            material: [],
-            dom_canvas: document.getElementById('webgl_canvas'),
-            gl: WebGLRenderingContext
-        }
-    ) {
-        super(args);
-        this.dom_canvas = args.dom_canvas;
+    constructor(...args) {
+        super(...args);
+        this.reset_args = args
         this.event = {
-            move: new CustomEvent('player_move', { detail: {position: this.center} }),
+            move: new CustomEvent('player_move', {detail: {position: this.center}}),
             reset: new CustomEvent('player_reset', {detail: {position: this.center}}),
             goal_reached: new CustomEvent('player_goal_reached', {detail: {score: this.score}})
         }
-        this.current_row = 0;
-        this.
-        this.dom_canvas.addEventListener('keydown', this.inputHandler)
     }
 
-    inputHandler(inputEvent) {
-        // TODO: Write player controller
-        switch (inputEvent.key){
-            case 'ArrowUp':
-                if(this.position<12) // TODO: block completed
-                this.transform({
-                    translation: vec3(0,0,1)
-                })
-        }
+    reset() {
+        console.log("player reset")
+        this.position = vec3.fromValues(...this.reset_args[0].position)
+        this.rotation = quat.fromValues(...this.reset_args[0].rotation)
+        this.scaling = vec3.fromValues(...this.reset_args[0].scaling)
+        this.refreshViewMatrix()
     }
 }

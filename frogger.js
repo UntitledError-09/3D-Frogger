@@ -5,17 +5,20 @@ import {
     Mesh,
     LightCollection,
     Collection,
-    TypedCollection, Material
+    TypedCollection, Material, Player, Row
 } from "./class_definitions.js"
 import {generateEllipsoidTriangles} from "./utils.js";
 import {quat, vec3} from "./gl_lib";
 
-var programInfo = {attribLocations: {}, uniformLocations: {}}
-var sceneData = {view: View, lights: LightCollection, elements: TypedCollection}
-var gl = null
-var animation = {
-    frame_counter: 0,
-    frame_max_limit: 1000000
+var programInfo = {attribLocations: {}, uniformLocations: {}};
+var sceneData = {view: View, lights: LightCollection, elements: TypedCollection};
+var gl = null;
+var player = null;
+var canvas = null;
+const gameState = {
+    score: 0,
+    lives: 5,
+    goals: 0,
 }
 
 // var background_color = [0, 0, 0]
@@ -37,7 +40,7 @@ function setupWebGL() {
 
 
     // Get the canvas and context
-    const canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
+    canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
     gl = canvas.getContext("webgl"); // get a webgl object from it
 
     if (gl == null) {
@@ -65,7 +68,7 @@ async function loadScene() {
 
         // update transformed light position on view_change
         window.addEventListener("view_change", (ev) => {
-            console.log("Event: view_change :: light transformed light position");
+            console.log("Event: view_change :: transformed light position updated");
             lights.recalcTransformedPosition(ev.detail.viewMatrices.model);
         });
 
@@ -78,14 +81,14 @@ async function loadScene() {
         elements.add(rows);
 
         // start row
-        const start_row = new TypedCollection('start_row', [Mesh], true);
+        const start_row = new Row('start_row');
         rows.add(start_row);
         const start_platform = new Mesh({
             name: "start_platform",
             type: "Cube",
             position: [0, 0, 0],
             rotation: [0, 0, 0, 0],
-            scaling: [10, 0.4, 1]
+            scaling: [12, 0.4, 1]
         }, meshLookupFile, gl);
         start_row.add(start_platform);
         start_platform.material = new Material({
@@ -104,7 +107,7 @@ async function loadScene() {
             type: "Plane",
             position: [0, 0, 3],
             rotation: [0, 0, 0, 0],
-            scaling: [10, 1, 5]
+            scaling: [12, 1, 5]
         }, meshLookupFile, gl);
         road_rows.add(road_plane);
         road_plane.material = new Material({
@@ -115,16 +118,17 @@ async function loadScene() {
             // texture: 'road.jpg'
         });
         for (let i = 1; i < 6; i++) {
-            const road_row = new TypedCollection('road_row_' + i, [Mesh]);
+            const road_row = new Row('road_row_'+i);
             road_rows.add(road_row);
             const row_obj_size = 2 + 0.2 * i
+            const row_obj_direction = ((Math.random() - 0.5) < 0 ? -1 : 1);
             const row_start = -(Math.random() * 5 + 2);
             const row_o2o_dist = Math.random() * 5 + 5 + row_obj_size
-            const row_obj_speed = 0.001 * (Math.random() - 0.5) + 0.0004
-            road_row.behaviour_properties = {row_obj_size, row_start, row_o2o_dist, row_obj_speed}
+            const row_obj_speed = (0.02 + 0.01 * Math.random()) * row_obj_direction
+            road_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed)
             for (let j = 0; j < 5; j++) {
                 const obj = new Mesh({
-                    name: "obj_" + i + "_" + j,
+                    name: "veh_" + i + "_" + j,
                     type: "Cube",
                     position: [row_start + row_o2o_dist * j, 0.5, i],
                     rotation: [0, 0, 0, 0],
@@ -132,6 +136,7 @@ async function loadScene() {
                     animatable: true
                 }, meshLookupFile, gl);
                 road_row.add(obj);
+                road_row.toLast(-1)
 
                 obj.material = new Material({
                     ambient: [0.05, 0.05, 0.05],
@@ -141,29 +146,24 @@ async function loadScene() {
                     // texture: 'road.jpg'
                 });
 
-                obj.animation = {
-                    step: {
-                        translation: vec3.fromValues(row_obj_speed, 0, 0),
-                    },
-                    bounds: {
-                        translation: [[-5, 5], null, null]
-                    }
+                obj.animation_step = {
+                    translation: vec3.fromValues(row_obj_speed, 0, 0),
                 }
             }
         }
 
         // median row
-        const median_row = new TypedCollection('median_row', [Mesh], true);
+        const median_row = new Row('median_row');
         rows.add(median_row);
-        const median_plane = new Mesh({
-            name: "median_plane",
+        const median_platform = new Mesh({
+            name: "median_platform",
             type: "Cube",
             position: [0, 0, 6],
             rotation: [0, 0, 0, 0],
-            scaling: [10, 0.4, 1]
+            scaling: [12, 0.4, 1]
         }, meshLookupFile, gl);
-        median_row.add(median_plane);
-        median_plane.material = new Material({
+        median_row.add(median_platform);
+        median_platform.material = new Material({
             ambient: [0.05, 0.05, 0.05],
             diffuse: [0.65, 0.65, 0.35],
             specular: [0.1, 0.1, 0.1],
@@ -179,7 +179,7 @@ async function loadScene() {
             type: "Plane",
             position: [0, 0, 9],
             rotation: [0, 0, 0, 0],
-            scaling: [10, 1, 5]
+            scaling: [12, 1, 5]
         }, meshLookupFile, gl);
         river_rows.add(river_plane);
         river_plane.material = new Material({
@@ -190,16 +190,17 @@ async function loadScene() {
             // texture: 'road.jpg'
         });
         for (let i = 7; i < 12; i++) {
-            const river_row = new TypedCollection('river_row_' + i, [Mesh]);
+            const river_row = new Row('river_row_'+i);
             river_rows.add(river_row);
             const row_obj_size = 2 + 0.2 * i
+            const row_obj_direction = ((Math.random() - 0.5) < 0 ? -1 : 1);
             const row_start = -(Math.random() * 5 + 2);
             const row_o2o_dist = Math.random() * 5 + 5 + row_obj_size
-            const row_obj_speed = 0.001 * (Math.random() - 0.5) + 0.0004
-            river_row.behaviour_properties = {row_obj_size, row_start, row_o2o_dist, row_obj_speed}
+            const row_obj_speed = (0.02 + 0.01 * Math.random()) * row_obj_direction
+            river_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed)
             for (let j = 0; j < 5; j++) {
                 const obj = new Mesh({
-                    name: "obj_" + i + "_" + j,
+                    name: "log_" + i + "_" + j,
                     type: "Cube",
                     position: [row_start + row_o2o_dist * j, 0, i],
                     rotation: [0, 0, 0, 0],
@@ -216,44 +217,39 @@ async function loadScene() {
                     // texture: 'road.jpg'
                 });
 
-                obj.animation = {
-                    step: {
-                        translation: vec3.fromValues(row_obj_speed, 0, 0),
-                    },
-                    bounds: {
-                        translation: [[-5, 5], null, null]
-                    }
+                obj.animation_step = {
+                    translation: vec3.fromValues(row_obj_speed, 0, 0),
                 }
             }
         }
 
         // end row
-        const end_row = new TypedCollection('end_row', [Mesh], true);
+        const end_row = new Row('end_row', true);
         rows.add(end_row);
-        // const end_plane = new Mesh({
-        //     name: "end_plane",
-        //     type: "Cube",
-        //     position: [0, 0, 0],
-        //     rotation: [0, 0, 0, 0],
-        //     scaling: [10, 0.4, 1]
-        // }, meshLookupFile, gl);
-        // end_row.add(end_plane);
-        // end_plane.material = new Material({
-        //     ambient: [0.05, 0.05, 0.05],
-        //     diffuse: [0.35, 0.65, 0.35],
-        //     specular: [0.1, 0.1, 0.1],
-        //     n: 30,
-        //     // texture: 'road.jpg'
-        // });
-        const end_goals = new TypedCollection('end_goals', [Mesh], true);
-        rows.add(end_goals);
+        const end_plane = new Mesh({
+            name: "end_plane",
+            type: "Cube",
+            position: [0, 0, 12],
+            rotation: [0, 0, 0, 0],
+            scaling: [12, 0.2, 1]
+        }, meshLookupFile, gl);
+        end_row.add(end_plane);
+        end_plane.material = new Material({
+            ambient: [0.05, 0.05, 0.05],
+            diffuse: [0.15, 0.35, 0.15],
+            specular: [0.1, 0.1, 0.1],
+            n: 30,
+            // texture: 'road.jpg'
+        });
+        const end_goals = new Row('end_goals');
+        end_row.add(end_goals);
         for (let i = 0; i < 5; i++) {
             const obj = new Mesh({
-                name: "obj_" + 12 + "_" + i,
+                name: "goal_" + 12 + "_" + i,
                 type: "Cube",
-                position: [(i-2)*2, 1, 12],
+                position: [(i - 2) * 2, 0, 12],
                 rotation: [0, 0, 0, 0],
-                scaling: [0.75, 2, 0.75]
+                scaling: [0.75, 0.4, 0.75]
             }, meshLookupFile, gl);
             end_goals.add(obj);
 
@@ -267,25 +263,27 @@ async function loadScene() {
             obj.completed = false;
             obj.makeCompleted = () => {
                 obj.completed = true;
+                obj.transform({scaleFactor: vec3.fromValues(1, 2, 1)})
                 obj.material = new Material({
                     ambient: [0.05, 0.05, 0.05],
-                    diffuse: [0.05, 0.45, 0.05],
+                    diffuse: [0.05, 0.65, 0.05],
                     specular: [1, 1, 1],
                     n: 30,
                     // texture: 'road.jpg'
                 });
+                window.dispatchEvent(new CustomEvent('goal_reached'));
             }
         }
 
         // Player
-        const player = new Mesh({
+        player = new Player({
             name: "player",
             type: "Cube",
             position: [0, 0.7, 0],
             rotation: [0, 0, 0, 0],
-            scaling: [0.5, 0.5, 1]
+            scaling: [0.5, 0.5, 0.5]
         }, meshLookupFile, gl);
-        end_row.add(player);
+        elements.add(player);
         player.material = new Material({
             ambient: [0.05, 0.05, 0.05],
             diffuse: [0.35, 0.65, 0.35],
@@ -420,6 +418,108 @@ function setupShaders() {
     return programInfo;
 } // end setup shaders
 
+function initInteractions() {
+    window.addEventListener('keydown', (ev) => {
+        console.log(ev.key)
+        switch (ev.key) {
+            case 'ArrowUp': {
+                if (player.position[2] < 11) {
+                    player.transform({
+                        translation: vec3.fromValues(0, 0, 1)
+                    })
+                    window.dispatchEvent(new CustomEvent('player_move', {detail: {position: player.position}}))
+                } else if (player.position[2] === 11 && Math.abs(Math.round(player.position[0])) % 2 === 0){
+                    player.transform({
+                        translation: vec3.fromValues(0, 0, 1)
+                    })
+                    window.dispatchEvent(new CustomEvent('player_move', {detail: {position: player.position}}))
+                }
+                break;
+            }
+            case 'ArrowDown': {
+                if (player.position[2] > 0) { // TODO: block on completed
+                    player.transform({
+                        translation: vec3.fromValues(0, 0, -1)
+                    })
+                    console.log(player.position)
+
+                    window.dispatchEvent(player.event.move)
+                }
+                break;
+            }
+            case 'ArrowLeft': {
+                if (player.position[0] < 5) { // TODO: block on completed
+                    player.transform({
+                        translation: vec3.fromValues(1, 0, 0)
+                    })
+                    console.log(player.position)
+
+                    window.dispatchEvent(player.event.move)
+                }
+                break;
+            }
+            case 'ArrowRight': {
+                if (player.position[0] > -5) { // TODO: block on completed
+                    player.transform({
+                        translation: vec3.fromValues(-1, 0, 0)
+                    })
+                    console.log(player.position)
+
+                    window.dispatchEvent(player.event.move)
+                }
+                break;
+            }
+        }
+    })
+}
+
+function initRulesEngine() {
+    window.addEventListener('player_move', ev => {
+        const player_position = ev.detail.position
+        if (player_position[2] === 12 && Math.abs(Math.round(player_position[0])) % 2 === 0) {
+            // check if goal completed
+            const goal_obj = sceneData.elements
+                .array.find(iter=>iter.name==='rows')
+                .array.find(iter=>iter.name==='end_row')
+                .array.find(iter=>iter.name==='end_goals')
+                .array.at(Math.round(player_position[0] / 2) + 2)
+            if (goal_obj.completed) {
+                player.transform({translation: vec3.fromValues(0, 0, -1)})
+            } else {
+                goal_obj.makeCompleted()
+                player.reset()
+                gameState.score += 10;
+                gameState.goals += 1;
+                if (gameState.goals === 5) {
+                    alert(`Hop-tastic! Froggy successfully conquered the road and navigated the river. This frog is more than just amphibious; it's an unstoppable leap master! High-fives with webbed hands all around—congratulations on frogging your way to victory! 🐸🏞️🎉\n\nYour score is ${gameState.score} with ${gameState.lives} remaining!`)
+                }
+            }
+        }
+    })
+
+    window.addEventListener('player_dead', ev => {
+        gameState.lives--;
+        alert(`${ev.detail?.msg || "You died!"}\n\nYour score is ${gameState.score} and have ${gameState.lives} remaining!`)
+        if (gameState.lives === 0) {
+            alert(`You lost! Your score is ${gameState.score}.`)
+        }
+        player.reset()
+    })
+}
+
+function checkPlayerCollision(obj = new Mesh()) {
+    if (player.position[2] !== obj.position[2]) {
+        return false;
+    }
+    const center_distance = Math.abs(player.position[0] - obj.position[0])
+    const obj_boundary = Math.abs(obj.scaling[0] / 2);
+    const player_boundary = Math.abs(player.scaling[0] / 2)
+
+    return center_distance < obj_boundary + player_boundary;
+
+}
+
+
 function renderScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
     gl.enable(gl.CULL_FACE);
@@ -447,13 +547,36 @@ function renderScene() {
     //     return mesh_a.center[2] - mesh_b.center[2];
     // });
 
+    // const offScreenRowFirsts = sceneData.elements
+    //     .array.find(element=>element.name==='rows')
+    //     .array.filter(rows=>rows.name.includes('_rows'))
+    //     .map(rows=>rows
+    //         .array.filter(row=>row.name.includes('row'))
+    //         .filter(item=>Math.abs(item.array.at(0).position[0])>7)
+    //         .map(item=>item.array.at(0)))
 
+    var player_collided = false
     sceneData.elements.flatten().forEach((mesh) => {
         // console.log(mesh.name);
 
         // do animation frame step
-        if (mesh.animatable === true) {
-            mesh.transform(mesh.animation.step);
+        if (mesh.animatable === true && player !== mesh) {
+            mesh.transform(mesh.animation_step);
+            if (checkPlayerCollision(mesh)) {
+                player_collided = true;
+                if (mesh.name[0] === 'v') {
+                    window.dispatchEvent(new CustomEvent('player_dead', {detail: {msg: "Oops! Froggy met a squishy fate. It seems the laws of hop-physics collided with a heavy object. But hey, at least Froggy's now the world's first pancake with a croak! Better luck on the next leap! 🥞🐸"}}));
+                } else if (mesh.name[0] === 'l') {
+                    player.transform(mesh.animation_step)
+                }
+            }
+        } else if (player === mesh) {
+            if (6 < player.position[2] && player.position[2] < 12 && !player_collided) {
+                window.dispatchEvent(new CustomEvent('player_dead', {detail: {msg: "D'oh! Looks like Froggy took an unexpected dive. Guess amphibians aren't the best swimmers after all! Don't worry, though. Froggy's just taking a moment to contemplate the deeper meaning of puddles. 🐸💦"}}));
+            }
+            if(Math.abs(player.position[0]) > 5){
+                window.dispatchEvent(new CustomEvent('player_dead', {detail: {msg: "Oh no! Froggy got carried away in the river rapids. Looks like our adventurous amphibian is on an unexpected river tour. Don't worry, Froggy's just embracing the current events – going with the flow, or should we say, the float! 🚣‍♂️🐸"}}));
+            }
         }
 
         // uniforms constant for a mesh
@@ -502,10 +625,9 @@ export async function main(options = {makeItYourOwn: false}) {
     try {
         setupWebGL(); // set up the webGL environment
         await loadScene(); // load in the triangles from tri file
-        programInfo = setupShaders(); // setup the webGL shaders
-        setInterval(() => {
-            animation.frame_counter = (animation.frame_counter + 1) % animation.frame_max_limit
-        }, 10);
+        setupShaders(); // setup the webGL shaders
+        initInteractions();
+        initRulesEngine()
         renderScene(); // draw the triangles using webGL
     } catch (e) {
         console.error(e);
