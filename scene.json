@@ -21,9 +21,43 @@
     {
       "name": "ground",
       "type": "Plane",
-      "position": [0,0,0],
-      "rotation": [0,0,0,0],
-      "scaling": [1,1,1]
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 0],
+      "scaling": [1, 1, 1]
+    }
+  ],
+  "makeItYourOwn_lights": [
+    {
+      "position": [-5, 10, 0],
+      "material": {
+        "ambient": [0.1, 0, 0],
+        "diffuse": [1, 0, 0],
+        "specular": [1, 0, 0]
+      }
+    },
+    {
+      "position": [5, 10, 0],
+      "material": {
+        "ambient": [0, 0.1, 0],
+        "diffuse": [0, 1, 0],
+        "specular": [0, 1, 0]
+      }
+    },
+    {
+      "position": [5, 10, 12],
+      "material": {
+        "ambient": [0, 0, 0.1],
+        "diffuse": [0, 0, 1],
+        "specular": [0, 0, 1]
+      }
+    },
+    {
+      "position": [-5, 10, 12],
+      "material": {
+        "ambient": [0.1, 0.1, 0],
+        "diffuse": [1, 1, 0],
+        "specular": [1, 1, 0]
+      }
     }
   ]
 }

@@ -21,6 +21,8 @@ const gameState = {
     goals: 0,
     level: 1
 }
+var makeItYourOwn = false;
+var light_multiplier =
 
 // var background_color = [0, 0, 0]
 
@@ -47,8 +49,8 @@ function setupWebGL() {
     if (gl == null) {
         throw "unable to create gl context -- is your browser gl ready?";
     } else {
-        // gl.clearColor(...backgroud_color, 1.0); // use black when we clear the frame buffer
-        gl.clearColor(0, 0, 0, 0); // use black when we clear the frame buffer
+        gl.clearColor(0, 0, 0, 1.0); // use black when we clear the frame buffer
+        // gl.clearColor(0, 0, 0, 0); // use black when we clear the frame buffer
         gl.clearDepth(1.0); // use max when we clear the depth buffer
         gl.enable(gl.DEPTH_TEST); // use hidden surface removal (with zbuffering);
     }
@@ -63,8 +65,7 @@ async function loadScene() {
         const sceneDataFile = await (await fetch("/scene.json")).json();
         const meshLookupFile = await (await fetch("/meshes.json")).json();
 
-        const lights = new LightCollection(sceneDataFile['lights'].map(light => new Light(light)));
-        // lights.recalcTransformedPosition(view.matrix.model);
+        const lights = new LightCollection(sceneDataFile[(makeItYourOwn?'makeItYourOwn_':'')+'lights'].map(light => new Light(light)));
         const elements = new TypedCollection('elements', [Mesh], true);
 
         // update transformed light position on view_change
@@ -122,7 +123,7 @@ async function loadScene() {
             const road_row = new Row('road_row_' + i);
             road_rows.add(road_row);
             const row_obj_size = 2 + 0.2 * i
-            const row_obj_direction = ((i & 1)? -1 : 1);
+            const row_obj_direction = ((i & 1) ? -1 : 1);
             const row_start = -(Math.random() * 5 + 2);
             const row_o2o_dist = 7 + row_obj_size
             const row_obj_speed = (0.02 + 0.005 * gameState.level) * row_obj_direction
@@ -150,8 +151,9 @@ async function loadScene() {
                     translation: vec3.fromValues(row_obj_speed, 0, 0),
                 }
             }
-            road_row.array.sort((obj_a, obj_b)=>{
-                return -row_obj_direction*(obj_a.position[0]-obj_b.position[0])
+            // ordered by dist to center
+            road_row.array.sort((obj_a, obj_b) => {
+                return -row_obj_direction * (obj_a.position[0] - obj_b.position[0])
             })
         }
 
@@ -195,8 +197,8 @@ async function loadScene() {
         for (let i = 7; i < 12; i++) {
             const river_row = new Row('river_row_' + i);
             river_rows.add(river_row);
-            const row_obj_size = 2 + 0.2 * i
-            const row_obj_direction = ((i & 1)? -1 : 1);
+            const row_obj_size = 2 + 0.2 * (i + Math.random())
+            const row_obj_direction = ((i & 1) ? -1 : 1);
             const row_start = -(Math.random() * 5 + 2);
             const row_o2o_dist = 5 + row_obj_size
             const row_obj_speed = (0.02 + 0.005 * gameState.level) * row_obj_direction
@@ -224,8 +226,8 @@ async function loadScene() {
                     translation: vec3.fromValues(row_obj_speed, 0, 0),
                 }
             }
-            river_row.array.sort((obj_a, obj_b)=>{
-                return -row_obj_direction*(obj_a.position[0]-obj_b.position[0])
+            river_row.array.sort((obj_a, obj_b) => {
+                return -row_obj_direction * (obj_a.position[0] - obj_b.position[0])
             })
         }
 
@@ -475,6 +477,10 @@ function initInteractions() {
                 }
                 break;
             }
+            case '!': {
+                makeItYourOwn = true;
+                main()
+            }
         }
     })
 }
@@ -496,6 +502,7 @@ function initRulesEngine() {
                 player.reset()
                 gameState.score += 10;
                 gameState.goals += 1;
+                gameState.level += 1;
                 if (gameState.goals === 5) {
                     alert(`Hop-tastic! Froggy successfully conquered the road and navigated the river. This frog is more than just amphibious; it's an unstoppable leap master! High-fives with webbed hands all around—congratulations on frogging your way to victory! 🐸🏞️🎉\n\nYour score is ${gameState.score} with ${gameState.lives} remaining!`)
                     window.location.reload()
@@ -509,6 +516,7 @@ function initRulesEngine() {
         alert(`${ev.detail?.msg || "You died!"}\n\nYour score is ${gameState.score} and have ${gameState.lives} remaining!`)
         if (gameState.lives === 0) {
             alert(`You lost! Your score is ${gameState.score}.`)
+            window.location.reload()
         }
         player.reset()
     })
@@ -632,13 +640,13 @@ function renderScene() {
     }) // end for each triangle set
 }
 
+initInteractions();
 export async function main(options = {makeItYourOwn: false}) {
     try {
         setupWebGL(); // set up the webGL environment
         await loadScene(); // load in the triangles from tri file
         setupShaders(); // setup the webGL shaders
-        initInteractions();
-        initRulesEngine()
+        initRulesEngine();
         renderScene(); // draw the triangles using webGL
     } catch (e) {
         console.error(e);
