@@ -334,14 +334,18 @@ export class Row extends TypedCollection {
         super(name, [Mesh], nestable);
     }
 
-    setProperties(obj_size, start_position, o2o_distance, obj_speed, obj_bounds = [[-1, 1], [-1, 1], [-1, 1]]) {
-        this.childrenProperties = {obj_size, start_position, o2o_distance, obj_speed}
+    setProperties(obj_size, start_position, o2o_distance, obj_speed, obj_direction) {
+        this.childrenProperties = {obj_size, start_position, o2o_distance, obj_speed, obj_direction}
     }
 
     toLast(index) {
+
         const temp = this.array.at(-1).position[0]
         this.array.push(this.array.splice(index, 1)[0])
-        this.array.at(-1).position[0] = temp + this.childrenProperties.o2o_distance
+        // if(this.name.includes('river')){
+        //     console.log(temp, this.array.at(-1).position[0])
+        // }
+        this.array.at(-1).position[0] = temp - (this.childrenProperties.o2o_distance * this.childrenProperties.obj_direction);
     }
 }
 

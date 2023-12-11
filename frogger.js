@@ -19,6 +19,7 @@ const gameState = {
     score: 0,
     lives: 5,
     goals: 0,
+    level: 1
 }
 
 // var background_color = [0, 0, 0]
@@ -118,14 +119,14 @@ async function loadScene() {
             // texture: 'road.jpg'
         });
         for (let i = 1; i < 6; i++) {
-            const road_row = new Row('road_row_'+i);
+            const road_row = new Row('road_row_' + i);
             road_rows.add(road_row);
-            const row_obj_size = 2 + 0.2 * i
-            const row_obj_direction = ((Math.random() - 0.5) < 0 ? -1 : 1);
-            const row_start = -(Math.random() * 5 + 2);
-            const row_o2o_dist = Math.random() * 5 + 5 + row_obj_size
-            const row_obj_speed = (0.02 + 0.01 * Math.random()) * row_obj_direction
-            road_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed)
+            const row_obj_size = 2
+            const row_obj_direction = ((i & 1)? -1 : 1);
+            const row_start = 0
+            const row_o2o_dist = 5
+            const row_obj_speed = (0.02 + 0.005 * gameState.level)
+            road_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed, row_obj_direction)
             for (let j = 0; j < 5; j++) {
                 const obj = new Mesh({
                     name: "veh_" + i + "_" + j,
@@ -136,7 +137,6 @@ async function loadScene() {
                     animatable: true
                 }, meshLookupFile, gl);
                 road_row.add(obj);
-                road_row.toLast(-1)
 
                 obj.material = new Material({
                     ambient: [0.05, 0.05, 0.05],
@@ -190,14 +190,14 @@ async function loadScene() {
             // texture: 'road.jpg'
         });
         for (let i = 7; i < 12; i++) {
-            const river_row = new Row('river_row_'+i);
+            const river_row = new Row('river_row_' + i);
             river_rows.add(river_row);
             const row_obj_size = 2 + 0.2 * i
-            const row_obj_direction = ((Math.random() - 0.5) < 0 ? -1 : 1);
+            const row_obj_direction = ((i & 1)? -1 : 1);
             const row_start = -(Math.random() * 5 + 2);
-            const row_o2o_dist = Math.random() * 5 + 5 + row_obj_size
-            const row_obj_speed = (0.02 + 0.01 * Math.random()) * row_obj_direction
-            river_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed)
+            const row_o2o_dist = 5 + row_obj_size// + Math.random() * 5
+            const row_obj_speed = (0.02 + 0.005 * gameState.level) * row_obj_direction
+            river_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed, row_obj_direction)
             for (let j = 0; j < 5; j++) {
                 const obj = new Mesh({
                     name: "log_" + i + "_" + j,
@@ -221,6 +221,9 @@ async function loadScene() {
                     translation: vec3.fromValues(row_obj_speed, 0, 0),
                 }
             }
+            river_row.array.sort((obj_a, obj_b)=>{
+                return -row_obj_direction*(obj_a.position[0]-obj_b.position[0])
+            })
         }
 
         // end row
@@ -428,7 +431,7 @@ function initInteractions() {
                         translation: vec3.fromValues(0, 0, 1)
                     })
                     window.dispatchEvent(new CustomEvent('player_move', {detail: {position: player.position}}))
-                } else if (player.position[2] === 11 && Math.abs(Math.round(player.position[0])) % 2 === 0){
+                } else if (player.position[2] === 11 && Math.abs(Math.round(player.position[0])) % 2 === 0) {
                     player.transform({
                         translation: vec3.fromValues(0, 0, 1)
                     })
@@ -479,9 +482,9 @@ function initRulesEngine() {
         if (player_position[2] === 12 && Math.abs(Math.round(player_position[0])) % 2 === 0) {
             // check if goal completed
             const goal_obj = sceneData.elements
-                .array.find(iter=>iter.name==='rows')
-                .array.find(iter=>iter.name==='end_row')
-                .array.find(iter=>iter.name==='end_goals')
+                .array.find(iter => iter.name === 'rows')
+                .array.find(iter => iter.name === 'end_row')
+                .array.find(iter => iter.name === 'end_goals')
                 .array.at(Math.round(player_position[0] / 2) + 2)
             if (goal_obj.completed) {
                 player.transform({translation: vec3.fromValues(0, 0, -1)})
@@ -519,7 +522,6 @@ function checkPlayerCollision(obj = new Mesh()) {
 
 }
 
-
 function renderScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
     gl.enable(gl.CULL_FACE);
@@ -547,13 +549,25 @@ function renderScene() {
     //     return mesh_a.center[2] - mesh_b.center[2];
     // });
 
-    // const offScreenRowFirsts = sceneData.elements
-    //     .array.find(element=>element.name==='rows')
-    //     .array.filter(rows=>rows.name.includes('_rows'))
-    //     .map(rows=>rows
-    //         .array.filter(row=>row.name.includes('row'))
-    //         .filter(item=>Math.abs(item.array.at(0).position[0])>7)
-    //         .map(item=>item.array.at(0)))
+    const offScreenRowFirstsRows = sceneData.elements
+        .array.find(element => element.name === 'rows')
+        .array.filter(all_rows => all_rows.name.includes('_rows'))
+        .map(multi_row => multi_row
+            .array.filter(row => row.name.includes('row'))
+            .filter(item => Math.abs(item.array.at(0).position[0]) > 15))
+
+    offScreenRowFirstsRows.forEach(multi_row => {
+        multi_row.forEach(row => {
+            if(row.name.includes('river')) {
+                console.log("before:" + row.array.map(item => item.position[0]))
+            }
+            row.toLast(0)
+            if(row.name.includes('river')) {
+                console.log("after:" + row.array.map(item => item.position[0]))
+                console.log('---')
+            }
+        })
+    })
 
     var player_collided = false
     sceneData.elements.flatten().forEach((mesh) => {
@@ -574,7 +588,7 @@ function renderScene() {
             if (6 < player.position[2] && player.position[2] < 12 && !player_collided) {
                 window.dispatchEvent(new CustomEvent('player_dead', {detail: {msg: "D'oh! Looks like Froggy took an unexpected dive. Guess amphibians aren't the best swimmers after all! Don't worry, though. Froggy's just taking a moment to contemplate the deeper meaning of puddles. 🐸💦"}}));
             }
-            if(Math.abs(player.position[0]) > 5){
+            if (Math.abs(player.position[0]) > 5) {
                 window.dispatchEvent(new CustomEvent('player_dead', {detail: {msg: "Oh no! Froggy got carried away in the river rapids. Looks like our adventurous amphibian is on an unexpected river tour. Don't worry, Froggy's just embracing the current events – going with the flow, or should we say, the float! 🚣‍♂️🐸"}}));
             }
         }
