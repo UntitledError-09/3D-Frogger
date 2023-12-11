@@ -201,6 +201,7 @@ async function loadScene() {
             const row_start = -(Math.random() * 5 + 2);
             const row_o2o_dist = 5 + row_obj_size
             const row_obj_speed = (0.02 + 0.005 * gameState.level) * row_obj_direction
+            const is_turtle = !(i & 1);
             river_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed, row_obj_direction)
             for (let j = 0; j < 5; j++) {
                 const obj = new Mesh({
@@ -208,14 +209,14 @@ async function loadScene() {
                     type: "Cube",
                     position: [row_start + row_o2o_dist * j, 0, i],
                     rotation: [0, 0, 0, 0],
-                    scaling: [row_obj_size, 1, 0.75],
+                    scaling: [(is_turtle)?0.75:row_obj_size, 1, 0.75],
                     animatable: true
                 }, meshLookupFile, gl);
                 river_row.add(obj);
 
                 obj.material = new Material({
                     ambient: [0.05, 0.05, 0.05],
-                    diffuse: [0.25, 0.15, 0.05],
+                    diffuse: [(is_turtle)?0.75:0.25, 0.15, 0.05],
                     specular: [1, 1, 1],
                     n: 30,
                     // texture: 'road.jpg'
