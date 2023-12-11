@@ -339,12 +339,8 @@ export class Row extends TypedCollection {
     }
 
     toLast(index) {
-
         const temp = this.array.at(-1).position[0]
         this.array.push(this.array.splice(index, 1)[0])
-        // if(this.name.includes('river')){
-        //     console.log(temp, this.array.at(-1).position[0])
-        // }
         this.array.at(-1).position[0] = temp - (this.childrenProperties.o2o_distance * this.childrenProperties.obj_direction);
     }
 }

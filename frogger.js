@@ -121,11 +121,11 @@ async function loadScene() {
         for (let i = 1; i < 6; i++) {
             const road_row = new Row('road_row_' + i);
             road_rows.add(road_row);
-            const row_obj_size = 2
+            const row_obj_size = 2 + 0.2 * i
             const row_obj_direction = ((i & 1)? -1 : 1);
-            const row_start = 0
-            const row_o2o_dist = 5
-            const row_obj_speed = (0.02 + 0.005 * gameState.level)
+            const row_start = -(Math.random() * 5 + 2);
+            const row_o2o_dist = 7 + row_obj_size
+            const row_obj_speed = (0.02 + 0.005 * gameState.level) * row_obj_direction
             road_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed, row_obj_direction)
             for (let j = 0; j < 5; j++) {
                 const obj = new Mesh({
@@ -150,6 +150,9 @@ async function loadScene() {
                     translation: vec3.fromValues(row_obj_speed, 0, 0),
                 }
             }
+            road_row.array.sort((obj_a, obj_b)=>{
+                return -row_obj_direction*(obj_a.position[0]-obj_b.position[0])
+            })
         }
 
         // median row
@@ -195,7 +198,7 @@ async function loadScene() {
             const row_obj_size = 2 + 0.2 * i
             const row_obj_direction = ((i & 1)? -1 : 1);
             const row_start = -(Math.random() * 5 + 2);
-            const row_o2o_dist = 5 + row_obj_size// + Math.random() * 5
+            const row_o2o_dist = 5 + row_obj_size
             const row_obj_speed = (0.02 + 0.005 * gameState.level) * row_obj_direction
             river_row.setProperties(row_obj_size, row_start, row_o2o_dist, row_obj_speed, row_obj_direction)
             for (let j = 0; j < 5; j++) {
@@ -495,6 +498,7 @@ function initRulesEngine() {
                 gameState.goals += 1;
                 if (gameState.goals === 5) {
                     alert(`Hop-tastic! Froggy successfully conquered the road and navigated the river. This frog is more than just amphibious; it's an unstoppable leap master! High-fives with webbed hands all around—congratulations on frogging your way to victory! 🐸🏞️🎉\n\nYour score is ${gameState.score} with ${gameState.lives} remaining!`)
+                    window.location.reload()
                 }
             }
         }
@@ -558,14 +562,7 @@ function renderScene() {
 
     offScreenRowFirstsRows.forEach(multi_row => {
         multi_row.forEach(row => {
-            if(row.name.includes('river')) {
-                console.log("before:" + row.array.map(item => item.position[0]))
-            }
             row.toLast(0)
-            if(row.name.includes('river')) {
-                console.log("after:" + row.array.map(item => item.position[0]))
-                console.log('---')
-            }
         })
     })
 
