@@ -29,7 +29,7 @@ function setupWebGL() {
     const imageContext = imageCanvas.getContext("2d");
     const bkgdImage = new Image();
     bkgdImage.crossOrigin = "Anonymous";
-    bkgdImage.src = "/assets/sky.jpg";
+    bkgdImage.src = "./assets/sky.jpg";
     bkgdImage.onload = function () {
         const iw = bkgdImage.width, ih = bkgdImage.height;
         imageContext.drawImage(bkgdImage, 0, 0, iw, ih, 0, 0, cw, ch);
@@ -56,8 +56,8 @@ function setupWebGL() {
 
 async function loadScene() {
     return new Promise(async (resolve, reject) => {
-        const sceneDataFile = await (await fetch("/scene.json")).json();
-        const meshLookupFile = await (await fetch("/meshes.json")).json();
+        const sceneDataFile = await (await fetch("./scene.json")).json();
+        const meshLookupFile = await (await fetch("./meshes.json")).json();
 
         const lights = new LightCollection(sceneDataFile[(makeItYourOwn?'makeItYourOwn_':'')+'lights'].map(light => new Light(light)));
         const elements = new TypedCollection('elements', [Mesh], true);
