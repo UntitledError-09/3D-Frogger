@@ -1,5 +1,8 @@
 // Class Definitions for Frogger
-import {mat4, quat, vec3, vec4} from "./gl_lib";
+import * as mat4 from "./gl_lib/mat4.js"
+import * as quat from "./gl_lib/quat.js"
+import * as vec3 from "./gl_lib/vec3.js"
+import * as vec4 from "./gl_lib/vec4.js"
 import * as utils from "./utils.js"
 import {handleLoadedTexture} from "./utils.js";
 

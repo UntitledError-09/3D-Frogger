@@ -1,14 +1,11 @@
-import * as utils from "./utils.js";
 import {
     View,
     Light,
     Mesh,
     LightCollection,
-    Collection,
     TypedCollection, Material, Player, Row
 } from "./class_definitions.js"
-import {generateEllipsoidTriangles} from "./utils.js";
-import {quat, vec3} from "./gl_lib";
+import * as vec3 from "./gl_lib/vec3.js";
 
 var programInfo = {attribLocations: {}, uniformLocations: {}};
 var sceneData = {view: View, lights: LightCollection, elements: TypedCollection};
@@ -22,8 +19,6 @@ const gameState = {
     level: 1
 }
 var makeItYourOwn = false;
-
-// var background_color = [0, 0, 0]
 
 
 function setupWebGL() {
